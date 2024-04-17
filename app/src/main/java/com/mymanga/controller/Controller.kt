@@ -6,7 +6,8 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import com.mymanga.dao.KissmangaDAO
+import com.mymanga.dao.Kissmanga
+import com.mymanga.dao.ReadManga
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileNotFoundException
@@ -16,14 +17,16 @@ import java.util.Locale
 
 class Controller (private val application: Application) {
 
-    private val kissmangaDAO = KissmangaDAO()
+    private val kissmanga = Kissmanga()
+    private val readmanga = ReadManga()
 
     private val KISSMANGA = "kissmanga"
+    private val READMANGA = "readmanga"
 
     fun startDownload(targetUrl: String, activity: Activity) {
         when (identifySourcePage(targetUrl)) {
             KISSMANGA -> downloadFromKissManga(targetUrl, activity)
-
+            READMANGA -> downloadFromReadManga(targetUrl, activity)
         }
     }
 
@@ -31,29 +34,32 @@ class Controller (private val application: Application) {
         val url = targetUrl.lowercase(Locale.ROOT)
         return if (url.contains(KISSMANGA)) {
             KISSMANGA
+        }else if(url.contains(READMANGA)){
+            READMANGA
         } else {
             return ""
         }
     }
 
-    fun downloadFromKissManga(targetUrl: String, activity: Activity) {
-        val chapterList = kissmangaDAO.getChapterList(targetUrl)
-        val chapterMap = kissmangaDAO.getChapterMap(targetUrl)
+    private fun downloadFromReadManga(targetUrl: String, activity: Activity) {
+        val chapterList = readmanga.getChapterList(targetUrl)
+        val chapterMap = readmanga.getChapterMap(targetUrl)
+        val mangaName = readmanga.getMangaName(targetUrl)
         chapterList.reverse()
 
-        for (c in chapterList) {
-            val imageSources: List<String> = kissmangaDAO.getImageUrlList(chapterMap
-                [c.split(" - ".toRegex()).dropLastWhile { it.isEmpty() }
-                .toTypedArray()[1]]
-            )
-            val images: List<ByteArray> = kissmangaDAO.downloadImageList(imageSources)
+        for(c in chapterList){
+            val imageSources: List<String> = readmanga.getImageUrlList(chapterMap[c])
+            val images: List<ByteArray> = readmanga.downloadImageList(imageSources)
+
+            val chapterName = c
 
             var chapterIndex = 0
             for (b in images) {
                 saveToInternalStorage(
                     BitmapFactory.decodeByteArray(b, 0, b.size),
                     activity,
-                    c,
+                    mangaName,
+                    chapterName,
                     chapterIndex
                 )
                 chapterIndex++
@@ -62,20 +68,50 @@ class Controller (private val application: Application) {
         }
     }
 
+    private fun downloadFromKissManga(targetUrl: String, activity: Activity) {
+        val chapterList = kissmanga.getChapterList(targetUrl)
+        val chapterMap = kissmanga.getChapterMap(targetUrl)
+        chapterList.reverse()
+
+        for (c in chapterList) {
+            val imageSources: List<String> = kissmanga.getImageUrlList(chapterMap
+                [c.split(" - ".toRegex()).dropLastWhile { it.isEmpty() }
+                .toTypedArray()[1]]
+            )
+            val images: List<ByteArray> = kissmanga.downloadImageList(imageSources)
+
+            val mangaName = c.split(" - ".toRegex()).dropLastWhile { it.isEmpty() }
+                .toTypedArray()[0].trim { it <= ' ' }
+            val chapterName = c.split(" - ".toRegex()).dropLastWhile { it.isEmpty() }
+                .toTypedArray()[1].trim { it <= ' ' }
+
+            var chapterIndex = 0
+            for (b in images) {
+                saveToInternalStorage(
+                    BitmapFactory.decodeByteArray(b, 0, b.size),
+                    activity,
+                    mangaName,
+                    chapterName,
+                    chapterIndex
+                )
+                chapterIndex++
+                println("-Downloaded Chapter/image: " + c.trim { it <= ' ' } + "/" + chapterIndex)
+            }
+        }
+    }
+
+
     private fun saveToInternalStorage(
         bitmapImage: Bitmap,
         activity: Activity,
-        imageName: String,
+        mangaName: String,
+        chapterName: String,
         index: Int
     ): String {
         val cw = ContextWrapper(activity.applicationContext)
         // path to /data/data/yourapp/app_data/imageDir
         val directory = cw.getDir("imageDir", Context.MODE_PRIVATE)
         // Create imageDir
-        val mangaName = imageName.split(" - ".toRegex()).dropLastWhile { it.isEmpty() }
-            .toTypedArray()[0].trim { it <= ' ' }
-        val chapterName = imageName.split(" - ".toRegex()).dropLastWhile { it.isEmpty() }
-            .toTypedArray()[1].trim { it <= ' ' }
         val mangaPath = File(directory.absolutePath + "/" + mangaName)
         if (!mangaPath.exists()) {
             mangaPath.mkdir()
