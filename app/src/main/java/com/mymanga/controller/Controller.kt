@@ -1,6 +1,7 @@
 package com.mymanga.controller
 
 import android.app.Activity
+import android.app.Application
 import android.content.Context
 import android.content.ContextWrapper
 import android.graphics.Bitmap
@@ -13,46 +14,34 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.util.Locale
 
-class Controller private constructor(){
+class Controller (private val application: Application) {
 
-    val kissmangaDAO = KissmangaDAO()
+    private val kissmangaDAO = KissmangaDAO()
 
     private val KISSMANGA = "kissmanga"
 
-    companion object{
-
-        @Volatile
-        private  var instance: Controller? = null
-
-        fun getInstance() =
-            instance ?: synchronized(this){
-                instance ?: Controller().also { instance = it }
-        }
-    }
-
-    fun startDownload(targetUrl: String, activity: Activity){
-        when (identifySourcePage(targetUrl)){
+    fun startDownload(targetUrl: String, activity: Activity) {
+        when (identifySourcePage(targetUrl)) {
             KISSMANGA -> downloadFromKissManga(targetUrl, activity)
 
         }
     }
 
-    private fun identifySourcePage(targetUrl: String): String{
+    private fun identifySourcePage(targetUrl: String): String {
         val url = targetUrl.lowercase(Locale.ROOT)
-        return if(url.contains(KISSMANGA)){
+        return if (url.contains(KISSMANGA)) {
             KISSMANGA
-        }
-        else{
+        } else {
             return ""
         }
     }
 
-    fun downloadFromKissManga(targetUrl: String, activity: Activity){
+    fun downloadFromKissManga(targetUrl: String, activity: Activity) {
         val chapterList = kissmangaDAO.getChapterList(targetUrl)
         val chapterMap = kissmangaDAO.getChapterMap(targetUrl)
         chapterList.reverse()
 
-        for(c in chapterList){
+        for (c in chapterList) {
             val imageSources: List<String> = kissmangaDAO.getImageUrlList(chapterMap
                 [c.split(" - ".toRegex()).dropLastWhile { it.isEmpty() }
                 .toTypedArray()[1]]
@@ -128,7 +117,21 @@ class Controller private constructor(){
         return b
     }
 
-    fun deleteFromInternalStorage(mangaName: String, activity: Activity){
+     fun loadImageFromStorage(filePath: String, application: Application): Bitmap? {
+        val options = BitmapFactory.Options().apply {
+            // Set inSampleSize to downsample the image
+            inSampleSize = 2
+        }
+        return try {
+            val file = File(filePath)
+            BitmapFactory.decodeFile(file.absolutePath, options)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    fun deleteFromInternalStorage(mangaName: String, activity: Activity) {
         val cw = ContextWrapper(activity.applicationContext)
         val directory = cw.getDir("imageDir", Context.MODE_PRIVATE)
         val mangaPath = File(directory.absolutePath + "/" + mangaName)

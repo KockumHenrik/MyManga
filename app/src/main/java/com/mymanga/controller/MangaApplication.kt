@@ -2,9 +2,8 @@ package com.mymanga.controller
 
 import android.app.Application
 import android.content.Context
-import com.mymanga.data.ChapterViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.mymanga.data.MangaViewModel
+import com.mymanga.data.GlobalViewModel
 
 class MangaApplication: Application() {
 
@@ -15,7 +14,7 @@ class MangaApplication: Application() {
         ctx = applicationContext
     }
 
-    val viewModel: MangaViewModel by lazy {
-        ViewModelProvider.AndroidViewModelFactory.getInstance(this).create(MangaViewModel::class.java)
+    val viewModel: GlobalViewModel by lazy {
+        ViewModelProvider.AndroidViewModelFactory.getInstance(this).create(GlobalViewModel::class.java)
     }
 }

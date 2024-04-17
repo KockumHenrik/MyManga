@@ -13,19 +13,17 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.snackbar.BaseTransientBottomBar
 import com.google.android.material.snackbar.Snackbar
 import com.mymanga.R
 import com.mymanga.controller.Controller
 import com.mymanga.controller.MangaApplication
-import com.mymanga.data.MangaViewModel
 
 class ViewActivity: AppCompatActivity() {
 
     private lateinit var newMangaView: LinearLayout
-    private lateinit var viewModel: MangaViewModel
     private lateinit var controller: Controller
+    private val viewModel by lazy { (application as MangaApplication).viewModel }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,12 +33,11 @@ class ViewActivity: AppCompatActivity() {
         WindowInsetsControllerCompat(window, window.decorView).show(WindowInsetsCompat.Type.systemBars())
         supportActionBar?.show()
 
-        controller = Controller.getInstance()
-        viewModel = ViewModelProvider(this)[MangaViewModel::class.java]
-        viewModel.loadManga(this)
+        controller = Controller(application)
         newMangaView = findViewById(R.id.layoutMangaView)
 
-        viewModel.mangaList.observe(this) {
+        viewModel.loadManga(this, application)
+        viewModel.mangas.observe(this){
             renderScreen()
         }
     }
@@ -48,7 +45,8 @@ class ViewActivity: AppCompatActivity() {
     @SuppressLint("ClickableViewAccessibility")
     fun renderScreen(){
         newMangaView.removeAllViews()
-        val mangaList = viewModel.mangaList.value
+//        val mangaList = mangaViewModel.mangaList.value
+        val mangaList = viewModel.mangas.value
         if(mangaList != null) {
             for (manga in mangaList) {
                 // Inflate the custom view
@@ -58,7 +56,7 @@ class ViewActivity: AppCompatActivity() {
                 val btnDelete = customMangaItem.findViewById<ImageButton>(R.id.btnDelete)
 
                 // Set the manga name
-                textMangaName.text = manga
+                textMangaName.text = manga.name
 
                 // Set onClickListener for custom view
                 customMangaItem.setOnClickListener {
@@ -94,12 +92,18 @@ class ViewActivity: AppCompatActivity() {
 
     private fun deleteButtonPressed(mangaName: String){
         println("Delete button pressed")
-        viewModel.deleteManga(mangaName)
+        viewModel.deleteByName(mangaName)
         controller.deleteFromInternalStorage(mangaName, this)
+        viewModel.loadManga(this, application)
     }
 
     fun goToNewMangaView(view: View?){
         startActivity(Intent(this@ViewActivity, MainActivity::class.java))
         finish()
+    }
+
+    fun refresh(view: View?){
+        println("Refresh button pressed")
+        viewModel.loadManga(this, application)
     }
 }

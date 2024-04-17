@@ -9,12 +9,14 @@ import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.textfield.TextInputEditText
 import com.mymanga.R
 import com.mymanga.controller.Controller
+import com.mymanga.controller.MangaApplication
 
 class MainActivity : AppCompatActivity() {
 
-    private val controller = Controller.getInstance()
-
+    private lateinit var controller: Controller
+    private val viewModel by lazy { (application as MangaApplication).viewModel }
     override fun onCreate(savedInstanceState: Bundle?) {
+        controller = Controller(application)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
     }
